@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ModaGestão — Gestão para sua loja</title>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <div class="login-screen" id="loginScreen">
+
+    <div class="login-card">
+
+      <div class="login-brand">
+        <div class="brand-mark">M</div>
+
+        <div>
+          <strong>ModaGestão</strong>
+          <span>gestão inteligente</span>
+        </div>
+      </div>
+
+      <h1>Entrar</h1>
+      <p>Acesse o painel de gestão da sua loja.</p>
+
+      <form id="loginForm">
+
+        <div class="field">
+          <label>E-mail</label>
+          <input
+            type="email"
+            id="loginEmail"
+            placeholder="voce@loja.com"
+            autocomplete="username"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label>Senha</label>
+          <input
+            type="password"
+            id="loginPassword"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <button class="primary-btn login-submit" type="submit">
+          Entrar
+        </button>
+
+      </form>
+
+      <div class="login-divider"><span>ou</span></div>
+
+      <p class="login-hint">
+        Ambiente de demonstração — use
+        <b>admin@modagestao.com</b> / <b>123456</b>
+      </p>
+
+    </div>
+
+  </div>
+
+  <div class="app">
+
+    <aside class="sidebar" id="sidebar">
+
+      <div class="brand">
+        <div class="brand-mark">M</div>
+
+        <div>
+          <strong>ModaGestão</strong>
+          <span>gestão inteligente</span>
+        </div>
+      </div>
+
+      <nav>
+
+        <p class="nav-title">PRINCIPAL</p>
+
+        <button class="nav-item active" data-page="dashboard">
+          <span>⌂</span> Dashboard
+        </button>
+
+        <button class="nav-item" data-page="produtos">
+          <span>◫</span> Produtos
+        </button>
+
+        <button class="nav-item" data-page="vendas">
+          <span>▣</span> Vendas
+        </button>
+
+        <button class="nav-item" data-page="estoque">
+          <span>▤</span> Estoque
+        </button>
+
+        <p class="nav-title">GESTÃO</p>
+
+        <button class="nav-item" data-page="financeiro">
+          <span>R$</span> Financeiro
+        </button>
+
+        <button class="nav-item" data-page="relatorios">
+          <span>◔</span> Relatórios
+        </button>
+
+        <button class="nav-item" data-page="config">
+          <span>⚙</span> Configurações
+        </button>
+
+      </nav>
+
+      <div class="sidebar-bottom">
+
+        <div class="user">
+
+          <div class="avatar">AN</div>
+
+          <div>
+            <strong>Administrador</strong>
+            <small>Loja ModaGestão</small>
+          </div>
+
+          <button id="logoutBtn" title="Sair">↪</button>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+
+    <main class="main">
+
+      <header class="topbar">
+
+        <button class="mobile-menu" id="mobileMenu">☰</button>
+
+        <div class="breadcrumb">
+          <span>ModaGestão</span>
+          <b>/</b>
+          <strong id="pageTitle">Dashboard</strong>
+        </div>
+
+        <!-- Sino e Minha loja removidos -->
+
+        <div class="top-actions"></div>
+
+      </header>
+
+
+      <div class="content" id="content"></div>
+
+    </main>
+
+  </div>
+
+
+  <div class="modal-backdrop" id="modalBackdrop">
+
+    <div class="modal">
+
+      <button class="modal-close" id="modalClose">×</button>
+
+      <h2 id="modalTitle">Novo registro</h2>
+
+      <div id="modalBody"></div>
+
+    </div>
+
+  </div>
+
+
+  <div class="toast" id="toast"></div>
+
+  <script src="script.js"></script>
+
+</body>
+</html>
