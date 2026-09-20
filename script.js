@@ -52,25 +52,38 @@ const state = {
     }
   ],
 
-  categoriasProduto: [
-    "Calça",
-    "Saia",
-    "Casaco",
-    "Vestidos",
-    "Blusas"
+  categorias: [
+    { id: 1, nome: "Calça", ativa: true },
+    { id: 2, nome: "Saia", ativa: true },
+    { id: 3, nome: "Casaco", ativa: true },
+    { id: 4, nome: "Vestidos", ativa: true },
+    { id: 5, nome: "Blusas", ativa: true }
   ],
 
   tamanhosProduto: ["PP", "P", "M", "G", "GG"],
+
+  /* Desconto (%) aplicado automaticamente conforme a forma de pagamento */
+  descontosPagamento: {
+    PIX: 5,
+    Dinheiro: 5,
+    Débito: 0,
+    Crédito: 0
+  },
 
   vendas: [
     {
       id: "#1048",
       cliente: "Mariana Souza",
-      produtoId: 1,
+      produtos: [
+        { produtoId: 1, nome: "Vestido Midi Floral", preco: 189.90, quantidade: 3, subtotal: 569.70 }
+      ],
       produtoNome: "Vestido Midi Floral",
       data: "16/09/2026",
       itens: 3,
       precoUnitario: 189.90,
+      subtotal: 569.70,
+      desconto: 5,
+      descontoValor: 0,
       total: 569.70,
       pagamento: "PIX",
       controlaEstoque: false
@@ -78,11 +91,16 @@ const state = {
     {
       id: "#1047",
       cliente: "Camila Oliveira",
-      produtoId: 2,
+      produtos: [
+        { produtoId: 2, nome: "Calça Wide Leg", preco: 159.90, quantidade: 2, subtotal: 319.80 }
+      ],
       produtoNome: "Calça Wide Leg",
       data: "16/09/2026",
       itens: 2,
       precoUnitario: 159.90,
+      subtotal: 319.80,
+      desconto: 0,
+      descontoValor: 0,
       total: 319.80,
       pagamento: "Débito",
       controlaEstoque: false
@@ -90,11 +108,16 @@ const state = {
     {
       id: "#1046",
       cliente: "Juliana Costa",
-      produtoId: 3,
+      produtos: [
+        { produtoId: 3, nome: "Blusa Tricot", preco: 119.90, quantidade: 4, subtotal: 479.60 }
+      ],
       produtoNome: "Blusa Tricot",
       data: "15/09/2026",
       itens: 4,
       precoUnitario: 119.90,
+      subtotal: 479.60,
+      desconto: 0,
+      descontoValor: 0,
       total: 479.60,
       pagamento: "Crédito",
       controlaEstoque: false
@@ -102,11 +125,16 @@ const state = {
     {
       id: "#1045",
       cliente: "Beatriz Santos",
-      produtoId: 1,
+      produtos: [
+        { produtoId: 1, nome: "Vestido Midi Floral", preco: 189.90, quantidade: 1, subtotal: 189.90 }
+      ],
       produtoNome: "Vestido Midi Floral",
       data: "15/09/2026",
       itens: 1,
       precoUnitario: 189.90,
+      subtotal: 189.90,
+      desconto: 5,
+      descontoValor: 0,
       total: 189.90,
       pagamento: "Dinheiro",
       controlaEstoque: false
@@ -114,11 +142,16 @@ const state = {
     {
       id: "#1044",
       cliente: "Mariana Souza",
-      produtoId: 2,
+      produtos: [
+        { produtoId: 2, nome: "Calça Wide Leg", preco: 159.90, quantidade: 2, subtotal: 319.80 }
+      ],
       produtoNome: "Calça Wide Leg",
       data: "14/09/2026",
       itens: 2,
       precoUnitario: 159.90,
+      subtotal: 319.80,
+      desconto: 5,
+      descontoValor: 0,
       total: 319.80,
       pagamento: "PIX",
       controlaEstoque: false
@@ -139,6 +172,11 @@ const pages = {
   produtos: {
     title: "Produtos",
     html: produtos
+  },
+
+  categorias: {
+    title: "Categorias",
+    html: categorias
   },
 
   vendas: {
@@ -192,6 +230,37 @@ function statusBadge(status) {
       : "red";
 
   return `<span class="badge ${classe}">${status}</span>`;
+}
+
+function faturamentoPorDiaMap() {
+  const mapa = {};
+
+  state.vendas.forEach(venda => {
+    mapa[venda.data] = (mapa[venda.data] || 0) + Number(venda.total);
+  });
+
+  return mapa;
+}
+
+function quantidadePorProdutoMap() {
+  const mapa = {};
+
+  state.vendas.forEach(venda => {
+    (venda.produtos && venda.produtos.length
+      ? venda.produtos
+      : [{ nome: venda.produtoNome, quantidade: venda.itens }]
+    ).forEach(item => {
+      mapa[item.nome] = (mapa[item.nome] || 0) + Number(item.quantidade || 0);
+    });
+  });
+
+  return mapa;
+}
+
+function categoriasAtivasNomes() {
+  return state.categorias
+    .filter(cat => cat.ativa)
+    .map(cat => cat.nome);
 }
 
 function atualizarStatusProduto(produto) {
@@ -265,6 +334,27 @@ function dashboard() {
   ).length;
 
   const vendasRecentes = state.vendas.slice(0, 5);
+
+  // Produtos mais / menos vendidos
+  const qtdPorProduto = quantidadePorProdutoMap();
+
+  state.produtos.forEach(produto => {
+    if (!(produto.nome in qtdPorProduto)) qtdPorProduto[produto.nome] = 0;
+  });
+
+  const rankingCompleto = Object.entries(qtdPorProduto).sort(
+    (a, b) => b[1] - a[1]
+  );
+
+  const maisVendidos = rankingCompleto.slice(0, 5);
+  const menosVendidos = rankingCompleto.slice().reverse().slice(0, 5);
+
+  // Períodos (dias) de maior / menor venda
+  const porDia = faturamentoPorDiaMap();
+  const diasRanking = Object.entries(porDia).sort((a, b) => b[1] - a[1]);
+
+  const melhoresDias = diasRanking.slice(0, 3);
+  const pioresDias = diasRanking.slice().reverse().slice(0, 3);
 
   return `
     <div class="page-head">
@@ -341,7 +431,7 @@ function dashboard() {
                             </td>
 
                             <td>
-                              ${venda.produtoNome}
+                              ${produtoResumoVenda(venda)}
                             </td>
 
                             <td>
@@ -408,7 +498,102 @@ function dashboard() {
       </div>
 
     </div>
+
+    <div class="dashboard-grid">
+
+      <div class="panel">
+
+        <div class="panel-head">
+          <div>
+            <h2>Produtos mais vendidos</h2>
+            <p>Top produtos por quantidade vendida.</p>
+          </div>
+        </div>
+
+        <div class="report-ranking">
+          ${rankingListaHtml(maisVendidos, "un.")}
+        </div>
+
+      </div>
+
+      <div class="panel">
+
+        <div class="panel-head">
+          <div>
+            <h2>Produtos menos vendidos</h2>
+            <p>Produtos com menor saída.</p>
+          </div>
+        </div>
+
+        <div class="report-ranking">
+          ${rankingListaHtml(menosVendidos, "un.")}
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="dashboard-grid">
+
+      <div class="panel">
+
+        <div class="panel-head">
+          <div>
+            <h2>Períodos de maior venda</h2>
+            <p>Dias com maior faturamento.</p>
+          </div>
+        </div>
+
+        <div class="report-ranking">
+          ${rankingListaHtml(melhoresDias, "", true)}
+        </div>
+
+      </div>
+
+      <div class="panel">
+
+        <div class="panel-head">
+          <div>
+            <h2>Períodos de menor venda</h2>
+            <p>Dias com menor faturamento.</p>
+          </div>
+        </div>
+
+        <div class="report-ranking">
+          ${rankingListaHtml(pioresDias, "", true)}
+        </div>
+
+      </div>
+
+    </div>
   `;
+}
+
+function rankingListaHtml(lista, sufixo = "", emDinheiro = false) {
+  if (!lista.length) {
+    return `<div class="empty-state">Sem dados suficientes.</div>`;
+  }
+
+  const maiorValor = Math.max(...lista.map(([, valor]) => valor), 1);
+
+  return lista
+    .map(
+      ([nome, valor]) => `
+        <div class="report-rank-row">
+          <span class="report-rank-name">${nome}</span>
+          <div class="report-rank-bar-wrap">
+            <div
+              class="report-rank-bar"
+              style="width:${Math.max(4, Math.round((valor / maiorValor) * 100))}%"
+            ></div>
+          </div>
+          <span class="report-rank-value">
+            ${emDinheiro ? money(valor) : valor + " " + sufixo}
+          </span>
+        </div>
+      `
+    )
+    .join("");
 }
 
 /* =========================================================
@@ -569,18 +754,24 @@ function openProduct(product = null) {
               <option value="" disabled ${editando ? "" : "selected"}>
                 Selecione...
               </option>
-              ${state.categoriasProduto
-                .map(
-                  cat => `
-                    <option
-                      value="${cat}"
-                      ${editando && product.categoria === cat ? "selected" : ""}
-                    >
-                      ${cat}
-                    </option>
-                  `
-                )
-                .join("")}
+              ${(() => {
+                const nomes = categoriasAtivasNomes();
+                if (editando && product.categoria && !nomes.includes(product.categoria)) {
+                  nomes.push(product.categoria);
+                }
+                return nomes
+                  .map(
+                    cat => `
+                      <option
+                        value="${cat}"
+                        ${editando && product.categoria === cat ? "selected" : ""}
+                      >
+                        ${cat}${editando && product.categoria === cat && !categoriasAtivasNomes().includes(cat) ? " (inativa)" : ""}
+                      </option>
+                    `
+                  )
+                  .join("");
+              })()}
             </select>
 
           </div>
@@ -684,7 +875,7 @@ function saveProduct(e, id) {
   const preco = Number(f.get("preco"));
 
   if (estoque < 0 || preco < 0) {
-    showToast("Informe valores válidos");
+    showToast("Informe valores válidos", "error");
     return;
   }
 
@@ -739,7 +930,9 @@ function deleteProduct(id) {
 
   const possuiVenda = state.vendas.some(
     venda =>
-      Number(venda.produtoId) === Number(id)
+      (venda.produtos || []).some(
+        item => Number(item.produtoId) === Number(id)
+      )
   );
 
   if (possuiVenda) {
@@ -764,19 +957,315 @@ function deleteProduct(id) {
 }
 
 /* =========================================================
+   CATEGORIAS
+========================================================= */
+
+function categorias() {
+  return `
+    <div class="page-head">
+
+      <div>
+        <h1>Categorias</h1>
+        <p>Cadastre e gerencie as categorias dos seus produtos.</p>
+      </div>
+
+      <button
+        class="primary-btn"
+        onclick="openCategoria()"
+      >
+        + Nova categoria
+      </button>
+
+    </div>
+
+    <div class="panel">
+
+      <div class="table-wrap">
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Categoria</th>
+              <th>Produtos vinculados</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${categoriaRows()}
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+  `;
+}
+
+function categoriaRows() {
+  if (!state.categorias.length) {
+    return `
+      <tr>
+        <td colspan="4" class="empty-state">
+          Nenhuma categoria cadastrada.
+        </td>
+      </tr>
+    `;
+  }
+
+  return state.categorias
+    .map(cat => {
+      const qtdProdutos = state.produtos.filter(
+        p => p.categoria === cat.nome
+      ).length;
+
+      return `
+        <tr>
+
+          <td>
+            <span class="product-name">${cat.nome}</span>
+          </td>
+
+          <td class="muted">
+            ${qtdProdutos}
+          </td>
+
+          <td>
+            <span class="badge ${cat.ativa ? "green" : "red"}">
+              ${cat.ativa ? "Ativa" : "Inativa"}
+            </span>
+          </td>
+
+          <td>
+            <div class="actions">
+
+              <button
+                class="action-btn"
+                title="Editar categoria"
+                onclick="editCategoria(${cat.id})"
+              >
+                ✏️
+              </button>
+
+              <button
+                class="action-btn"
+                title="${cat.ativa ? "Inativar" : "Ativar"} categoria"
+                onclick="toggleCategoriaAtiva(${cat.id})"
+              >
+                ${cat.ativa ? "⏸️" : "▶️"}
+              </button>
+
+              <button
+                class="action-btn delete"
+                title="Excluir categoria"
+                onclick="deleteCategoria(${cat.id})"
+              >
+                🗑️
+              </button>
+
+            </div>
+          </td>
+
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+function openCategoria(cat = null) {
+  const editando = !!cat;
+
+  openModal(
+    editando ? "Editar categoria" : "Nova categoria",
+
+    `
+      <form onsubmit="saveCategoria(event, ${editando ? cat.id : "null"})">
+
+        <div class="form-grid">
+
+          <div class="field">
+            <label>Nome da categoria</label>
+            <input
+              name="nome"
+              type="text"
+              placeholder="Ex: Vestidos, Calças..."
+              value="${editando ? cat.nome : ""}"
+              required
+            >
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+
+          <button
+            type="button"
+            class="secondary-btn"
+            onclick="closeModal()"
+          >
+            Cancelar
+          </button>
+
+          <button class="primary-btn">
+            ${editando ? "Salvar alterações" : "Cadastrar categoria"}
+          </button>
+
+        </div>
+
+      </form>
+    `
+  );
+}
+
+function saveCategoria(e, id) {
+  e.preventDefault();
+
+  const f = new FormData(e.target);
+  const nome = String(f.get("nome") || "").trim();
+
+  if (!nome) {
+    showToast("Informe o nome da categoria", "error");
+    return;
+  }
+
+  const jaExiste = state.categorias.some(
+    cat =>
+      cat.nome.toLowerCase() === nome.toLowerCase() &&
+      cat.id !== id
+  );
+
+  if (jaExiste) {
+    showToast("Já existe uma categoria com esse nome", "error");
+    return;
+  }
+
+  if (id) {
+    const categoria = state.categorias.find(c => c.id === id);
+
+    if (categoria) {
+      /* Mantém os produtos já cadastrados apontando para o novo nome */
+      state.produtos.forEach(p => {
+        if (p.categoria === categoria.nome) p.categoria = nome;
+      });
+
+      categoria.nome = nome;
+    }
+  } else {
+    state.categorias.push({
+      id: Date.now(),
+      nome,
+      ativa: true
+    });
+  }
+
+  closeModal();
+  atualizarSistema("categorias");
+  showToast("Categoria salva com sucesso");
+}
+
+function editCategoria(id) {
+  const categoria = state.categorias.find(c => c.id === id);
+  if (!categoria) return;
+  openCategoria(categoria);
+}
+
+function toggleCategoriaAtiva(id) {
+  const categoria = state.categorias.find(c => c.id === id);
+  if (!categoria) return;
+
+  categoria.ativa = !categoria.ativa;
+
+  atualizarSistema("categorias");
+  showToast(
+    categoria.ativa
+      ? "Categoria ativada"
+      : "Categoria inativada. Ela não aparecerá mais no cadastro de produtos."
+  );
+}
+
+function deleteCategoria(id) {
+  const categoria = state.categorias.find(c => c.id === id);
+  if (!categoria) return;
+
+  const emUso = state.produtos.some(p => p.categoria === categoria.nome);
+
+  if (emUso) {
+    alert(
+      "Esta categoria possui produtos vinculados e não pode ser excluída. Inative-a ou altere a categoria dos produtos."
+    );
+    return;
+  }
+
+  if (!confirm("Excluir esta categoria?")) return;
+
+  state.categorias = state.categorias.filter(c => c.id !== id);
+
+  atualizarSistema("categorias");
+  showToast("Categoria excluída");
+}
+
+/* =========================================================
    VENDAS
 ========================================================= */
 
+let vendasPeriodoAtivo = "todas";
+
+const PERIODOS_VENDA = [
+  { id: "todas", label: "Todas" },
+  { id: "semana", label: "Semanal" },
+  { id: "mes", label: "Mensal" },
+  { id: "estemes", label: "Este mês" },
+  { id: "ano", label: "Anual" }
+];
+
+function parseDataBR(str) {
+  const [d, m, y] = String(str).split("/").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function filtrarVendasPorPeriodo(lista, periodo) {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  return lista.filter(venda => {
+    const d = parseDataBR(venda.data);
+    const diffDias = Math.floor((hoje - d) / 86400000);
+
+    if (periodo === "semana") return diffDias >= 0 && diffDias < 7;
+    if (periodo === "mes") return diffDias >= 0 && diffDias < 30;
+    if (periodo === "estemes")
+      return (
+        d.getFullYear() === hoje.getFullYear() &&
+        d.getMonth() === hoje.getMonth()
+      );
+    if (periodo === "ano") return d.getFullYear() === hoje.getFullYear();
+    return true;
+  });
+}
+
+function selecionarPeriodoVendas(periodo) {
+  vendasPeriodoAtivo = periodo;
+  atualizarSistema("vendas");
+}
+
 function vendas() {
-  const faturamento = state.vendas.reduce(
+  const vendasFiltradas = filtrarVendasPorPeriodo(
+    state.vendas,
+    vendasPeriodoAtivo
+  );
+
+  const faturamento = vendasFiltradas.reduce(
     (total, venda) =>
       total + Number(venda.total),
     0
   );
 
-  const pedidos = state.vendas.length;
+  const pedidos = vendasFiltradas.length;
 
-  const pix = state.vendas.filter(
+  const pix = vendasFiltradas.filter(
     venda =>
       venda.pagamento === "PIX"
   ).length;
@@ -798,6 +1287,19 @@ function vendas() {
         + Nova venda
       </button>
 
+    </div>
+
+    <div class="tabs">
+      ${PERIODOS_VENDA.map(
+        p => `
+          <button
+            class="tab-btn ${vendasPeriodoAtivo === p.id ? "active" : ""}"
+            onclick="selecionarPeriodoVendas('${p.id}')"
+          >
+            ${p.label}
+          </button>
+        `
+      ).join("")}
     </div>
 
     <div class="cards">
@@ -849,7 +1351,7 @@ function vendas() {
       <div class="panel-head">
 
         <div>
-          <h2>Vendas recentes</h2>
+          <h2>Vendas ${vendasPeriodoAtivo === "todas" ? "recentes" : "no período"}</h2>
           <p>Histórico das vendas realizadas.</p>
         </div>
 
@@ -864,9 +1366,10 @@ function vendas() {
             <tr>
               <th>Pedido</th>
               <th>Cliente</th>
-              <th>Produto</th>
+              <th>Produto(s)</th>
               <th>Data</th>
               <th>Quantidade</th>
+              <th>Desconto</th>
               <th>Total</th>
               <th>Pagamento</th>
               <th></th>
@@ -877,8 +1380,8 @@ function vendas() {
           <tbody>
 
             ${
-              state.vendas.length
-                ? state.vendas
+              vendasFiltradas.length
+                ? vendasFiltradas
                     .map(
                       venda => `
                         <tr>
@@ -892,7 +1395,7 @@ function vendas() {
                           </td>
 
                           <td>
-                            ${venda.produtoNome}
+                            ${produtoResumoVenda(venda)}
                           </td>
 
                           <td>
@@ -901,6 +1404,10 @@ function vendas() {
 
                           <td>
                             ${venda.itens}
+                          </td>
+
+                          <td class="muted">
+                            ${venda.desconto ? venda.desconto + "%" : "—"}
                           </td>
 
                           <td>
@@ -944,10 +1451,10 @@ function vendas() {
                 : `
                   <tr>
                     <td
-                      colspan="8"
+                      colspan="9"
                       class="empty-state"
                     >
-                      Nenhuma venda registrada.
+                      Nenhuma venda registrada neste período.
                     </td>
                   </tr>
                 `
@@ -963,152 +1470,176 @@ function vendas() {
   `;
 }
 
+function produtoResumoVenda(venda) {
+  const itens = venda.produtos || [];
+
+  if (!itens.length) return venda.produtoNome || "—";
+  if (itens.length === 1) return itens[0].nome;
+
+  return `${itens[0].nome} +${itens.length - 1} item(ns)`;
+}
+
 /* =========================================================
-   NOVA VENDA
+   VENDA — CARRINHO (NOVA / EDIÇÃO)
 ========================================================= */
 
+let saleCart = [];
+let saleEditId = null;
+
+function estoqueBaseProduto(produtoId) {
+  const produto = state.produtos.find(
+    p => Number(p.id) === Number(produtoId)
+  );
+
+  if (!produto) return 0;
+
+  let base = produto.estoque;
+
+  if (saleEditId) {
+    const vendaOriginal = state.vendas.find(v => v.id === saleEditId);
+
+    const itemOriginal =
+      vendaOriginal &&
+      vendaOriginal.controlaEstoque &&
+      (vendaOriginal.produtos || []).find(
+        i => Number(i.produtoId) === Number(produtoId)
+      );
+
+    if (itemOriginal) base += Number(itemOriginal.quantidade);
+  }
+
+  return base;
+}
+
 function openSale() {
-  const produtosDisponiveis =
-    state.produtos.filter(
-      produto =>
-        produto.estoque > 0
-    );
+  const produtosDisponiveis = state.produtos.filter(
+    produto => produto.estoque > 0
+  );
 
   if (!produtosDisponiveis.length) {
-    showToast(
-      "Não há produtos disponíveis em estoque"
-    );
-
+    showToast("Não há produtos disponíveis em estoque", "error");
     return;
   }
 
-  openModal(
-    "Nova venda",
+  saleEditId = null;
+  saleCart = [];
 
+  abrirModalVenda("Nova venda", "", "PIX");
+}
+
+function editSale(id) {
+  const venda = state.vendas.find(v => v.id === id);
+  if (!venda) return;
+
+  saleEditId = id;
+  saleCart = (venda.produtos || []).map(item => ({
+    produtoId: item.produtoId,
+    nome: item.nome,
+    preco: item.preco,
+    quantidade: item.quantidade
+  }));
+
+  abrirModalVenda("Editar venda", venda.cliente, venda.pagamento);
+}
+
+function abrirModalVenda(titulo, cliente, pagamento) {
+  const formasPagamento = Object.keys(state.descontosPagamento);
+
+  openModal(
+    titulo,
     `
-      <form onsubmit="saveSale(event)">
+      <form onsubmit="saveSaleCart(event)">
 
         <div class="form-grid">
 
           <div class="field">
-
             <label>Nome do cliente</label>
-
             <input
               name="cliente"
+              id="saleCliente"
               type="text"
               placeholder="Digite o nome do cliente"
+              value="${cliente || ""}"
               required
             >
-
           </div>
 
           <div class="field">
-
-            <label>Produto</label>
-
+            <label>Forma de pagamento</label>
             <select
-              name="produto"
-              id="saleProduto"
-              onchange="atualizarTotalVenda()"
+              name="pagamento"
+              id="salePagamento"
+              onchange="renderSaleCart()"
               required
             >
+              <option value="">Selecione</option>
+              ${formasPagamento
+                .map(
+                  forma => `
+                    <option value="${forma}" ${pagamento === forma ? "selected" : ""}>
+                      ${forma}${
+                        state.descontosPagamento[forma]
+                          ? " (" + state.descontosPagamento[forma] + "% desconto)"
+                          : ""
+                      }
+                    </option>
+                  `
+                )
+                .join("")}
+            </select>
+          </div>
 
-              <option value="">
-                Selecione o produto
-              </option>
+        </div>
 
-              ${
-                produtosDisponiveis
-                  .map(
-                    produto => `
-                      <option
-                        value="${produto.id}"
-                        data-preco="${produto.preco}"
-                        data-estoque="${produto.estoque}"
-                      >
-                        ${produto.nome}
-                        — ${money(produto.preco)}
-                        (${produto.estoque} em estoque)
-                      </option>
-                    `
-                  )
-                  .join("")
-              }
+        <div class="field">
+          <label>Adicionar produto</label>
 
+          <div class="sale-add-row">
+
+            <select id="saleProdutoSelect">
+              <option value="">Selecione o produto</option>
+              ${state.produtos
+                .map(
+                  produto => `
+                    <option value="${produto.id}">
+                      ${produto.nome} — ${money(produto.preco)}
+                      (${estoqueBaseProduto(produto.id)} disponíveis)
+                    </option>
+                  `
+                )
+                .join("")}
             </select>
 
-          </div>
-
-          <div class="field">
-
-            <label>Quantidade</label>
-
             <input
-              name="itens"
-              id="saleQuantidade"
+              id="saleProdutoQtd"
               type="number"
               min="1"
               value="1"
-              oninput="atualizarTotalVenda()"
-              required
             >
 
-          </div>
-
-          <div class="field">
-
-            <label>Pagamento</label>
-
-            <select
-              name="pagamento"
-              required
-            >
-
-              <option value="">
-                Selecione
-              </option>
-
-              <option value="PIX">
-                PIX
-              </option>
-
-              <option value="Débito">
-                Débito
-              </option>
-
-              <option value="Crédito">
-                Crédito
-              </option>
-
-              <option value="Dinheiro">
-                Dinheiro
-              </option>
-
-            </select>
+            <button type="button" class="secondary-btn" onclick="adicionarItemVenda()">
+              Adicionar
+            </button>
 
           </div>
-
         </div>
 
-        <div class="sale-total">
-
-          <span>
-            Total da venda
-          </span>
-
-          <strong id="saleTotal">
-            R$ 0,00
-          </strong>
-
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th>Qtd.</th>
+                <th>Unitário</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="saleCartBody"></tbody>
+          </table>
         </div>
 
-        <input
-          type="hidden"
-          name="total"
-          id="saleTotalInput"
-          value="0"
-        >
+        <div id="saleTotals"></div>
 
         <div class="form-actions">
 
@@ -1121,7 +1652,7 @@ function openSale() {
           </button>
 
           <button class="primary-btn">
-            Registrar venda
+            ${saleEditId ? "Salvar alterações" : "Registrar venda"}
           </button>
 
         </div>
@@ -1129,642 +1660,306 @@ function openSale() {
       </form>
     `
   );
+
+  renderSaleCart();
 }
 
-/* =========================================================
-   CALCULAR TOTAL DA VENDA
-========================================================= */
+function adicionarItemVenda() {
+  const select = document.getElementById("saleProdutoSelect");
+  const qtdInput = document.getElementById("saleProdutoQtd");
 
-function atualizarTotalVenda() {
-  const produtoSelect =
-    document.getElementById("saleProduto");
+  if (!select || !qtdInput) return;
 
-  const quantidadeInput =
-    document.getElementById("saleQuantidade");
+  const produtoId = Number(select.value);
+  const quantidade = Number(qtdInput.value);
 
-  const totalElement =
-    document.getElementById("saleTotal");
-
-  const totalInput =
-    document.getElementById("saleTotalInput");
-
-  if (
-    !produtoSelect ||
-    !quantidadeInput ||
-    !totalElement ||
-    !totalInput
-  ) {
-    return;
-  }
-
-  const option =
-    produtoSelect.options[
-      produtoSelect.selectedIndex
-    ];
-
-  if (
-    !option ||
-    !option.dataset.preco
-  ) {
-    totalElement.textContent = "R$ 0,00";
-    totalInput.value = 0;
-    return;
-  }
-
-  const preco =
-    Number(option.dataset.preco);
-
-  const quantidade =
-    Number(quantidadeInput.value) || 0;
-
-  const estoque =
-    Number(option.dataset.estoque);
-
-  if (quantidade > estoque) {
-    quantidadeInput.setCustomValidity(
-      `Quantidade máxima disponível: ${estoque}`
-    );
-  } else {
-    quantidadeInput.setCustomValidity("");
-  }
-
-  const total =
-    preco * quantidade;
-
-  totalElement.textContent =
-    money(total);
-
-  totalInput.value =
-    total.toFixed(2);
-}
-
-/* =========================================================
-   SALVAR VENDA
-========================================================= */
-
-function saveSale(e) {
-  e.preventDefault();
-
-  const f =
-    new FormData(e.target);
-
-  const produtoId =
-    Number(f.get("produto"));
-
-  const quantidade =
-    Number(f.get("itens"));
-
-  const cliente =
-    String(f.get("cliente") || "").trim();
-
-  const pagamento =
-    f.get("pagamento");
-
-  const produto =
-    state.produtos.find(
-      p =>
-        Number(p.id) === produtoId
-    );
-
-  if (!produto) {
-    showToast("Produto não encontrado");
-    return;
-  }
-
-  if (!cliente) {
-    showToast("Informe o nome do cliente");
+  if (!produtoId) {
+    showToast("Selecione um produto", "error");
     return;
   }
 
   if (!Number.isInteger(quantidade) || quantidade <= 0) {
-    showToast("Informe uma quantidade válida");
+    showToast("Informe uma quantidade válida", "error");
     return;
   }
 
-  if (quantidade > produto.estoque) {
-    showToast(
-      `Estoque insuficiente. Disponível: ${produto.estoque}`
-    );
+  const produto = state.produtos.find(p => Number(p.id) === produtoId);
+  if (!produto) return;
+
+  const disponivel = estoqueBaseProduto(produtoId);
+
+  const existente = saleCart.find(
+    item => Number(item.produtoId) === produtoId
+  );
+
+  const totalDesejado = quantidade + (existente ? existente.quantidade : 0);
+
+  if (totalDesejado > disponivel) {
+    showToast(`Estoque insuficiente. Disponível: ${disponivel}`, "error");
+    return;
+  }
+
+  if (existente) {
+    existente.quantidade = totalDesejado;
+  } else {
+    saleCart.push({
+      produtoId: produto.id,
+      nome: produto.nome,
+      preco: produto.preco,
+      quantidade
+    });
+  }
+
+  qtdInput.value = 1;
+  renderSaleCart();
+}
+
+function removerItemVenda(produtoId) {
+  saleCart = saleCart.filter(
+    item => Number(item.produtoId) !== Number(produtoId)
+  );
+  renderSaleCart();
+}
+
+function atualizarQtdItemVenda(produtoId, valor) {
+  const item = saleCart.find(
+    i => Number(i.produtoId) === Number(produtoId)
+  );
+
+  if (!item) return;
+
+  const quantidade = Number(valor);
+  const disponivel = estoqueBaseProduto(produtoId);
+
+  if (!Number.isInteger(quantidade) || quantidade <= 0) {
+    return;
+  }
+
+  if (quantidade > disponivel) {
+    showToast(`Estoque insuficiente. Disponível: ${disponivel}`, "error");
+    item.quantidade = disponivel;
+  } else {
+    item.quantidade = quantidade;
+  }
+
+  renderSaleCart();
+}
+
+function calcularTotaisCarrinho() {
+  const subtotal = saleCart.reduce(
+    (total, item) => total + item.preco * item.quantidade,
+    0
+  );
+
+  const pagamentoSelect = document.getElementById("salePagamento");
+  const pagamento = pagamentoSelect ? pagamentoSelect.value : "";
+
+  const descontoPerc =
+    (pagamento && state.descontosPagamento[pagamento]) || 0;
+
+  const descontoValor = subtotal * (descontoPerc / 100);
+  const total = subtotal - descontoValor;
+
+  return { subtotal, pagamento, descontoPerc, descontoValor, total };
+}
+
+function renderSaleCart() {
+  const body = document.getElementById("saleCartBody");
+  const totalsBox = document.getElementById("saleTotals");
+
+  if (!body || !totalsBox) return;
+
+  body.innerHTML = saleCart.length
+    ? saleCart
+        .map(
+          item => `
+            <tr>
+              <td>${item.nome}</td>
+              <td>
+                <input
+                  type="number"
+                  min="1"
+                  value="${item.quantidade}"
+                  style="width:64px"
+                  onchange="atualizarQtdItemVenda(${item.produtoId}, this.value)"
+                >
+              </td>
+              <td>${money(item.preco)}</td>
+              <td><b>${money(item.preco * item.quantidade)}</b></td>
+              <td>
+                <button
+                  type="button"
+                  class="action-btn delete"
+                  title="Remover"
+                  onclick="removerItemVenda(${item.produtoId})"
+                >
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          `
+        )
+        .join("")
+    : `
+      <tr>
+        <td colspan="5" class="empty-state">
+          Nenhum produto adicionado.
+        </td>
+      </tr>
+    `;
+
+  const { subtotal, descontoPerc, descontoValor, total } =
+    calcularTotaisCarrinho();
+
+  totalsBox.innerHTML = `
+    <div class="sale-total-line">
+      <span>Subtotal</span>
+      <span>${money(subtotal)}</span>
+    </div>
+    <div class="sale-total-line">
+      <span>Desconto${descontoPerc ? " (" + descontoPerc + "%)" : ""}</span>
+      <span>${descontoValor ? "- " + money(descontoValor) : money(0)}</span>
+    </div>
+    <div class="sale-total">
+      <span>Total da venda</span>
+      <strong>${money(total)}</strong>
+    </div>
+  `;
+}
+
+function saveSaleCart(e) {
+  e.preventDefault();
+
+  const f = new FormData(e.target);
+  const cliente = String(f.get("cliente") || "").trim();
+  const pagamento = f.get("pagamento");
+
+  if (!cliente) {
+    showToast("Informe o nome do cliente", "error");
+    return;
+  }
+
+  if (!saleCart.length) {
+    showToast("Adicione ao menos um produto à venda", "error");
     return;
   }
 
   if (!pagamento) {
-    showToast("Selecione a forma de pagamento");
+    showToast("Selecione a forma de pagamento", "error");
     return;
   }
 
-  /* PREÇO × QUANTIDADE */
+  /* Revalida disponibilidade de cada item antes de confirmar */
+  for (const item of saleCart) {
+    const disponivel = estoqueBaseProduto(item.produtoId);
+    if (item.quantidade > disponivel) {
+      showToast(`Estoque insuficiente para ${item.nome}. Disponível: ${disponivel}`, "error");
+      return;
+    }
+  }
 
-  const total =
-    produto.preco * quantidade;
+  const { subtotal, descontoPerc, descontoValor, total } =
+    calcularTotaisCarrinho();
 
-  /* PRÓXIMO NÚMERO DE PEDIDO */
+  const produtosVenda = saleCart.map(item => ({
+    produtoId: item.produtoId,
+    nome: item.nome,
+    preco: item.preco,
+    quantidade: item.quantidade,
+    subtotal: item.preco * item.quantidade
+  }));
 
-  const numerosPedidos =
-    state.vendas
-      .map(venda =>
-        Number(
-          String(venda.id).replace("#", "")
-        )
-      )
-      .filter(numero => !isNaN(numero));
+  const quantidadeTotal = produtosVenda.reduce(
+    (total, item) => total + item.quantidade,
+    0
+  );
 
-  const maiorNumero =
-    numerosPedidos.length
-      ? Math.max(...numerosPedidos)
-      : 1043;
+  if (saleEditId) {
+    const vendaOriginal = state.vendas.find(v => v.id === saleEditId);
 
-  const novoNumero =
-    maiorNumero + 1;
+    /* Restaura estoque somente se a venda original já controlava estoque */
+    if (vendaOriginal && vendaOriginal.controlaEstoque) {
+      (vendaOriginal.produtos || []).forEach(item => {
+        const produto = state.produtos.find(
+          p => Number(p.id) === Number(item.produtoId)
+        );
+        if (produto) {
+          produto.estoque += Number(item.quantidade);
+          atualizarStatusProduto(produto);
+        }
+      });
+    }
 
-  /* REGISTRA VENDA */
+    /* Baixa o estoque com os novos itens (a venda passa a controlar estoque) */
+    produtosVenda.forEach(item => {
+      const produto = state.produtos.find(
+        p => Number(p.id) === Number(item.produtoId)
+      );
+      if (produto) {
+        produto.estoque -= item.quantidade;
+        atualizarStatusProduto(produto);
+      }
+    });
+
+    vendaOriginal.cliente = cliente;
+    vendaOriginal.produtos = produtosVenda;
+    vendaOriginal.produtoNome = produtosVenda[0].nome;
+    vendaOriginal.itens = quantidadeTotal;
+    vendaOriginal.precoUnitario = produtosVenda[0].preco;
+    vendaOriginal.subtotal = subtotal;
+    vendaOriginal.desconto = descontoPerc;
+    vendaOriginal.descontoValor = descontoValor;
+    vendaOriginal.total = total;
+    vendaOriginal.pagamento = pagamento;
+    vendaOriginal.controlaEstoque = true;
+
+    closeModal();
+    atualizarSistema("vendas");
+    showToast("Venda atualizada com sucesso");
+    return;
+  }
+
+  /* Baixa o estoque para venda nova */
+  produtosVenda.forEach(item => {
+    const produto = state.produtos.find(
+      p => Number(p.id) === Number(item.produtoId)
+    );
+    if (produto) {
+      produto.estoque -= item.quantidade;
+      atualizarStatusProduto(produto);
+    }
+  });
+
+  /* Próximo número de pedido */
+  const numerosPedidos = state.vendas
+    .map(venda => Number(String(venda.id).replace("#", "")))
+    .filter(numero => !isNaN(numero));
+
+  const maiorNumero = numerosPedidos.length
+    ? Math.max(...numerosPedidos)
+    : 1043;
+
+  const novoNumero = maiorNumero + 1;
 
   state.vendas.unshift({
     id: "#" + novoNumero,
     cliente,
-    produtoId: produto.id,
-    produtoNome: produto.nome,
+    produtos: produtosVenda,
+    produtoNome: produtosVenda[0].nome,
     data: new Date().toLocaleDateString("pt-BR"),
-    itens: quantidade,
-    precoUnitario: produto.preco,
+    itens: quantidadeTotal,
+    precoUnitario: produtosVenda[0].preco,
+    subtotal,
+    desconto: descontoPerc,
+    descontoValor,
     total,
     pagamento,
-
-    /* Esta venda controla o estoque */
     controlaEstoque: true
   });
 
-  /* BAIXA NO ESTOQUE */
-
-  produto.estoque -= quantidade;
-
-  atualizarStatusProduto(produto);
-
   closeModal();
-
-  /*
-    Como o state foi atualizado,
-    qualquer página renderizada
-    mostrará os novos valores.
-  */
-
   atualizarSistema("vendas");
-
-  showToast(
-    "Venda registrada e estoque atualizado"
-  );
-}
-
-/* =========================================================
-   EDITAR VENDA
-========================================================= */
-
-function editSale(id) {
-  const sale =
-    state.vendas.find(
-      v =>
-        v.id === id
-    );
-
-  if (!sale) return;
-
-  openModal(
-    "Editar venda",
-
-    `
-      <form
-        onsubmit="
-          updateSale(
-            event,
-            '${sale.id}'
-          )
-        "
-      >
-
-        <div class="form-grid">
-
-          <div class="field">
-
-            <label>
-              Nome do cliente
-            </label>
-
-            <input
-              name="cliente"
-              type="text"
-              value="${sale.cliente}"
-              required
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Produto
-            </label>
-
-            <select
-              name="produto"
-              id="editSaleProduto"
-              onchange="atualizarTotalEdicao()"
-              required
-            >
-
-              ${
-                state.produtos
-                  .map(
-                    produto => {
-
-                      const mesmoProduto =
-                        Number(produto.id) ===
-                        Number(sale.produtoId);
-
-                      const estoqueDisponivel =
-                        mesmoProduto &&
-                        sale.controlaEstoque
-                          ? produto.estoque + sale.itens
-                          : produto.estoque;
-
-                      return `
-                        <option
-                          value="${produto.id}"
-                          data-preco="${produto.preco}"
-                          data-estoque="${estoqueDisponivel}"
-                          ${
-                            mesmoProduto
-                              ? "selected"
-                              : ""
-                          }
-                        >
-                          ${produto.nome}
-                          — ${money(produto.preco)}
-                          (${estoqueDisponivel} disponíveis)
-                        </option>
-                      `;
-                    }
-                  )
-                  .join("")
-              }
-
-            </select>
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Quantidade
-            </label>
-
-            <input
-              name="itens"
-              id="editSaleQuantidade"
-              type="number"
-              min="1"
-              value="${sale.itens}"
-              oninput="atualizarTotalEdicao()"
-              required
-            >
-
-          </div>
-
-          <div class="field">
-
-            <label>
-              Pagamento
-            </label>
-
-            <select
-              name="pagamento"
-              required
-            >
-
-              <option
-                value="PIX"
-                ${
-                  sale.pagamento === "PIX"
-                    ? "selected"
-                    : ""
-                }
-              >
-                PIX
-              </option>
-
-              <option
-                value="Débito"
-                ${
-                  sale.pagamento === "Débito"
-                    ? "selected"
-                    : ""
-                }
-              >
-                Débito
-              </option>
-
-              <option
-                value="Crédito"
-                ${
-                  sale.pagamento === "Crédito"
-                    ? "selected"
-                    : ""
-                }
-              >
-                Crédito
-              </option>
-
-              <option
-                value="Dinheiro"
-                ${
-                  sale.pagamento === "Dinheiro"
-                    ? "selected"
-                    : ""
-                }
-              >
-                Dinheiro
-              </option>
-
-            </select>
-
-          </div>
-
-        </div>
-
-        <div class="sale-total">
-
-          <span>
-            Total da venda
-          </span>
-
-          <strong id="editSaleTotal">
-            ${money(sale.total)}
-          </strong>
-
-        </div>
-
-        <input
-          type="hidden"
-          name="total"
-          id="editSaleTotalInput"
-          value="${sale.total}"
-        >
-
-        <div class="form-actions">
-
-          <button
-            type="button"
-            class="secondary-btn"
-            onclick="closeModal()"
-          >
-            Cancelar
-          </button>
-
-          <button class="primary-btn">
-            Salvar alterações
-          </button>
-
-        </div>
-
-      </form>
-    `
-  );
-
-  atualizarTotalEdicao();
-}
-
-/* =========================================================
-   CALCULAR TOTAL DA EDIÇÃO
-========================================================= */
-
-function atualizarTotalEdicao() {
-  const produtoSelect =
-    document.getElementById("editSaleProduto");
-
-  const quantidadeInput =
-    document.getElementById("editSaleQuantidade");
-
-  const totalElement =
-    document.getElementById("editSaleTotal");
-
-  const totalInput =
-    document.getElementById("editSaleTotalInput");
-
-  if (
-    !produtoSelect ||
-    !quantidadeInput ||
-    !totalElement ||
-    !totalInput
-  ) {
-    return;
-  }
-
-  const option =
-    produtoSelect.options[
-      produtoSelect.selectedIndex
-    ];
-
-  if (!option) return;
-
-  const preco =
-    Number(option.dataset.preco);
-
-  const quantidade =
-    Number(quantidadeInput.value) || 0;
-
-  const estoque =
-    Number(option.dataset.estoque);
-
-  if (quantidade > estoque) {
-    quantidadeInput.setCustomValidity(
-      `Quantidade máxima disponível: ${estoque}`
-    );
-  } else {
-    quantidadeInput.setCustomValidity("");
-  }
-
-  const total =
-    preco * quantidade;
-
-  totalElement.textContent =
-    money(total);
-
-  totalInput.value =
-    total.toFixed(2);
-}
-
-/* =========================================================
-   ATUALIZAR VENDA
-========================================================= */
-
-function updateSale(e, id) {
-  e.preventDefault();
-
-  const f =
-    new FormData(e.target);
-
-  const sale =
-    state.vendas.find(
-      v =>
-        v.id === id
-    );
-
-  if (!sale) return;
-
-  const novoProdutoId =
-    Number(f.get("produto"));
-
-  const novaQuantidade =
-    Number(f.get("itens"));
-
-  const novoCliente =
-    String(f.get("cliente") || "").trim();
-
-  const novoPagamento =
-    f.get("pagamento");
-
-  const novoProduto =
-    state.produtos.find(
-      p =>
-        Number(p.id) ===
-        novoProdutoId
-    );
-
-  if (!novoProduto) {
-    showToast("Produto não encontrado");
-    return;
-  }
-
-  if (!novoCliente) {
-    showToast("Informe o nome do cliente");
-    return;
-  }
-
-  if (
-    !Number.isInteger(novaQuantidade) ||
-    novaQuantidade <= 0
-  ) {
-    showToast("Informe uma quantidade válida");
-    return;
-  }
-
-  if (!novoPagamento) {
-    showToast("Selecione a forma de pagamento");
-    return;
-  }
-
-  /*
-    Se esta venda antiga controla estoque,
-    primeiro devolvemos a quantidade antiga.
-  */
-
-  const produtoAntigo =
-    state.produtos.find(
-      p =>
-        Number(p.id) ===
-        Number(sale.produtoId)
-    );
-
-  if (
-    sale.controlaEstoque &&
-    produtoAntigo
-  ) {
-    produtoAntigo.estoque +=
-      Number(sale.itens);
-
-    atualizarStatusProduto(
-      produtoAntigo
-    );
-  }
-
-  /*
-    Agora verificamos quanto existe
-    realmente disponível para a nova venda.
-  */
-
-  if (
-    novaQuantidade >
-    novoProduto.estoque
-  ) {
-
-    /*
-      Se devolvemos o estoque antigo,
-      desfazemos essa devolução.
-    */
-
-    if (
-      sale.controlaEstoque &&
-      produtoAntigo
-    ) {
-      produtoAntigo.estoque -=
-        Number(sale.itens);
-
-      atualizarStatusProduto(
-        produtoAntigo
-      );
-    }
-
-    showToast(
-      `Estoque insuficiente. Disponível: ${novoProduto.estoque}`
-    );
-
-    return;
-  }
-
-  /*
-    PREÇO × QUANTIDADE
-  */
-
-  const total =
-    novoProduto.preco *
-    novaQuantidade;
-
-  /*
-    Se a venda já controlava estoque,
-    a venda continuará controlando estoque.
-  */
-
-  if (sale.controlaEstoque) {
-
-    novoProduto.estoque -=
-      novaQuantidade;
-
-    atualizarStatusProduto(
-      novoProduto
-    );
-  }
-
-  /*
-    Atualiza os dados da venda.
-  */
-
-  sale.cliente =
-    novoCliente;
-
-  sale.produtoId =
-    novoProduto.id;
-
-  sale.produtoNome =
-    novoProduto.nome;
-
-  sale.itens =
-    novaQuantidade;
-
-  sale.precoUnitario =
-    novoProduto.preco;
-
-  sale.total =
-    total;
-
-  sale.pagamento =
-    novoPagamento;
-
-  closeModal();
-
-  atualizarSistema("vendas");
-
-  showToast(
-    "Venda atualizada com sucesso"
-  );
+  showToast("Venda registrada e estoque atualizado");
 }
 
 /* =========================================================
@@ -1772,52 +1967,24 @@ function updateSale(e, id) {
 ========================================================= */
 
 function deleteSale(id) {
-  const sale =
-    state.vendas.find(
-      v =>
-        v.id === id
-    );
-
+  const sale = state.vendas.find(v => v.id === id);
   if (!sale) return;
 
-  if (!confirm("Excluir esta venda?")) {
-    return;
-  }
-
-  /*
-    Só restaura estoque se a venda
-    realmente tiver retirado produtos.
-  */
+  if (!confirm("Excluir esta venda?")) return;
 
   if (sale.controlaEstoque) {
-
-    const produto =
-      state.produtos.find(
-        p =>
-          Number(p.id) ===
-          Number(sale.produtoId)
+    (sale.produtos || []).forEach(item => {
+      const produto = state.produtos.find(
+        p => Number(p.id) === Number(item.produtoId)
       );
-
-    if (produto) {
-
-      produto.estoque +=
-        Number(sale.itens);
-
-      atualizarStatusProduto(
-        produto
-      );
-    }
+      if (produto) {
+        produto.estoque += Number(item.quantidade);
+        atualizarStatusProduto(produto);
+      }
+    });
   }
 
-  /*
-    Remove a venda.
-  */
-
-  state.vendas =
-    state.vendas.filter(
-      v =>
-        v.id !== id
-    );
+  state.vendas = state.vendas.filter(v => v.id !== id);
 
   atualizarSistema("vendas");
 
@@ -2118,7 +2285,7 @@ function moveStock(e) {
     Number(f.get("qtd"));
 
   if (!produto) {
-    showToast("Produto não encontrado");
+    showToast("Produto não encontrado", "error");
     return;
   }
 
@@ -2127,7 +2294,8 @@ function moveStock(e) {
     quantidade <= 0
   ) {
     showToast(
-      "Informe uma quantidade válida"
+      "Informe uma quantidade válida",
+      "error"
     );
 
     return;
@@ -2149,7 +2317,8 @@ function moveStock(e) {
     ) {
 
       showToast(
-        `Estoque insuficiente. Disponível: ${produto.estoque}`
+        `Estoque insuficiente. Disponível: ${produto.estoque}`,
+        "error"
       );
 
       return;
@@ -2378,7 +2547,7 @@ function financeiro() {
                           </td>
 
                           <td>
-                            ${venda.produtoNome}
+                            ${produtoResumoVenda(venda)}
                           </td>
 
                           <td>
@@ -2542,15 +2711,39 @@ function invoicePreviewHtml(venda) {
           </thead>
 
           <tbody>
-            <tr>
-              <td>${venda.produtoNome}</td>
-              <td>${venda.itens}</td>
-              <td>${money(venda.precoUnitario)}</td>
-              <td>${money(venda.total)}</td>
-            </tr>
+            ${(venda.produtos && venda.produtos.length
+              ? venda.produtos
+              : [{ nome: venda.produtoNome, quantidade: venda.itens, preco: venda.precoUnitario, subtotal: venda.total }]
+            )
+              .map(
+                item => `
+                  <tr>
+                    <td>${item.nome}</td>
+                    <td>${item.quantidade}</td>
+                    <td>${money(item.preco)}</td>
+                    <td>${money(item.subtotal != null ? item.subtotal : item.preco * item.quantidade)}</td>
+                  </tr>
+                `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
+
+      ${
+        venda.desconto
+          ? `
+            <div class="invoice-row">
+              <span class="invoice-label">Subtotal</span>
+              <strong>${money(venda.subtotal)}</strong>
+            </div>
+            <div class="invoice-row">
+              <span class="invoice-label">Desconto (${venda.desconto}%)</span>
+              <strong>- ${money(venda.descontoValor)}</strong>
+            </div>
+          `
+          : ""
+      }
 
       <div class="invoice-total">
         <span>Total da nota</span>
@@ -2613,12 +2806,7 @@ function relatorios() {
     );
 
   // Faturamento agrupado por dia
-  const porDiaMap = {};
-
-  state.vendas.forEach(venda => {
-    porDiaMap[venda.data] =
-      (porDiaMap[venda.data] || 0) + Number(venda.total);
-  });
+  const porDiaMap = faturamentoPorDiaMap();
 
   const diasOrdenados = Object.keys(porDiaMap).sort((a, b) => {
     const [da, ma, ya] = a.split("/").map(Number);
@@ -2652,12 +2840,7 @@ function relatorios() {
     : `<div class="empty-state">Sem dados suficientes para o gráfico.</div>`;
 
   // Ranking de produtos por quantidade vendida
-  const porProdutoMap = {};
-
-  state.vendas.forEach(venda => {
-    porProdutoMap[venda.produtoNome] =
-      (porProdutoMap[venda.produtoNome] || 0) + Number(venda.itens);
-  });
+  const porProdutoMap = quantidadePorProdutoMap();
 
   const rankingProdutos = Object.entries(porProdutoMap)
     .sort((a, b) => b[1] - a[1])
@@ -2847,7 +3030,66 @@ function config() {
       </div>
 
     </div>
+
+    <div class="panel">
+
+      <div class="panel-head">
+        <div>
+          <h2>Descontos por forma de pagamento</h2>
+          <p>Percentual aplicado automaticamente ao registrar uma venda.</p>
+        </div>
+      </div>
+
+      <div class="panel-body">
+
+        <form
+          class="form-grid"
+          onsubmit="salvarDescontosPagamento(event)"
+        >
+
+          ${Object.keys(state.descontosPagamento)
+            .map(
+              forma => `
+                <div class="field">
+                  <label>${forma}</label>
+                  <input
+                    name="${forma}"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value="${state.descontosPagamento[forma]}"
+                  >
+                </div>
+              `
+            )
+            .join("")}
+
+          <div class="form-actions" style="grid-column:1/-1">
+            <button class="primary-btn">Salvar descontos</button>
+          </div>
+
+        </form>
+
+      </div>
+
+    </div>
   `;
+}
+
+function salvarDescontosPagamento(e) {
+  e.preventDefault();
+
+  const f = new FormData(e.target);
+
+  Object.keys(state.descontosPagamento).forEach(forma => {
+    const valor = Number(f.get(forma));
+    state.descontosPagamento[forma] = isNaN(valor)
+      ? 0
+      : Math.min(100, Math.max(0, valor));
+  });
+
+  showToast("Descontos por forma de pagamento atualizados");
 }
 
 /* =========================================================
@@ -2888,17 +3130,30 @@ function closeModal() {
    TOAST
 ========================================================= */
 
-function showToast(message) {
+const TOAST_ICONS = {
+  success:
+    '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="currentColor" opacity=".18"/><path d="M6 10.5l2.5 2.5L14 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  error:
+    '<svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="10" fill="currentColor" opacity=".18"/><path d="M10 6v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="10" cy="13.5" r="1" fill="currentColor"/></svg>',
+};
+
+function showToast(message, type = "success") {
   if (!toast) return;
 
-  toast.textContent =
-    message;
+  toast.innerHTML =
+    `<span class="toast-icon">${TOAST_ICONS[type] || TOAST_ICONS.success}</span><span class="toast-msg">${message}</span>`;
+
+  toast.classList.remove("toast-success", "toast-error");
+  toast.classList.add(
+    type === "error" ? "toast-error" : "toast-success"
+  );
 
   toast.classList.add("show");
 
-  setTimeout(() => {
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => {
     toast.classList.remove("show");
-  }, 2500);
+  }, 2800);
 }
 
 /* =========================================================
@@ -2939,7 +3194,7 @@ if (loginForm) {
     if (email === DEMO_EMAIL && senha === DEMO_SENHA) {
       entrarNoSistema();
     } else {
-      showToast("E-mail ou senha inválidos.");
+      showToast("E-mail ou senha inválidos.", "error");
     }
   });
 }
